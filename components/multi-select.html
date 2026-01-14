@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Select Component Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+
+        .controls-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .controls-panel h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #171717;
+        }
+
+        .control-group {
+            margin-bottom: 24px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .control-group:last-child {
+            border-bottom: none;
+        }
+
+        .control-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #525252;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .control-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d4d4d4;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .control-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        select.control-input {
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 14px;
+            cursor: pointer;
+            color: #262626;
+        }
+
+        .preview-area {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: auto;
+        }
+
+        .resize-container {
+            border: 2px dashed #8b5cf6;
+            border-radius: 8px;
+            padding: 20px;
+            resize: both;
+            overflow: auto;
+            min-width: 320px;
+            min-height: 200px;
+            width: 600px;
+            height: 100%;
+            position: relative;
+            background: #fafafa;
+            display: flex;
+            align-items: flex-start;
+            justify-content: stretch;
+        }
+
+        .resize-handle {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            background: #8b5cf6;
+            border-radius: 4px 0 0 0;
+            cursor: nwse-resize;
+        }
+
+        .dimensions-display {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            font-size: 12px;
+            color: #8b5cf6;
+            font-weight: 600;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Multi-select Component Styles */
+        .multiselect {
+            width: 100%;
+            position: relative;
+        }
+
+        .multiselect-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e5;
+            user-select: none;
+        }
+
+        .multiselect-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #262626;
+            cursor: pointer;
+            /* padding: 2px; */
+            margin: -2px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .multiselect-label.focused {
+            background: #ffffff;
+            border: 2px solid #0c0c0c;
+            box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 0px 6px #fcd34d;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #d4d4d4;
+            border-radius: 6px;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .checkbox.checked {
+            background: #262626;
+            border-color: #262626;
+        }
+
+        .checkbox.indeterminate {
+            background: #262626;
+            border-color: #262626;
+        }
+
+        .checkbox svg {
+            width: 16px;
+            height: 16px;
+            stroke: white;
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .clear-all {
+            color: #2563eb;
+            font-size: 16px;
+            font-weight: 500;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 2px;
+            margin: -2px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .clear-all:hover {
+            color: #1d4ed8;
+        }
+
+        .clear-all.focused {
+            background: #ffffff;
+            border: 2px solid #0c0c0c;
+            box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 0px 6px #fcd34d;
+        }
+
+        .multiselect-items {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .multiselect-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .multiselect-item:hover {
+            background: #f5f5f5;
+        }
+
+        .multiselect-item.selected {
+            background: #f5f5f5;
+        }
+
+        .multiselect-item.focused {
+            background: #ffffff;
+            border: 2px solid #0c0c0c;
+            box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 0px 6px #fcd34d;
+            border-radius: 8px;
+            padding: 10px 14px; /* Adjust padding to account for border */
+        }
+
+        .item-icon {
+            width: 20px;
+            height: 20px;
+            color: #525252;
+        }
+
+        .item-label {
+            font-size: 16px;
+            color: #262626;
+            flex: 1;
+        }
+
+        .check-icon {
+            width: 20px;
+            height: 20px;
+            color: #8b5cf6;
+        }
+
+        .scrollbar {
+            position: absolute;
+            right: 4px;
+            top: 52px;
+            bottom: 4px;
+            width: 8px;
+        }
+
+        .scrollbar-thumb {
+            background: #d4d4d4;
+            border-radius: 8px;
+            height: 50%;
+        }
+
+        /* Category styles */
+        .category-item {
+            border-bottom: 1px solid #e5e5e5;
+            padding: 0;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+        }
+
+        .category-children {
+            padding-left: 20px;
+        }
+
+        /* Checkbox with tip styles */
+        .item-with-tip {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 12px 16px 8px;
+        }
+
+        .item-with-tip .item-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .item-with-tip .item-text {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .item-with-tip .item-label {
+            font-weight: 500;
+        }
+
+        .item-supporting-text {
+            font-size: 14px;
+            color: #525252;
+            line-height: 1.5;
+        }
+
+        .empty-state {
+            padding: 24px;
+            text-align: center;
+        }
+
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            background: #f5f3ff;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #171717;
+            margin-bottom: 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: #404040;
+            margin-bottom: 16px;
+        }
+
+        .empty-action {
+            color: #6d28d9;
+            font-weight: 600;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* Skeleton loading */
+        .skeleton {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .skeleton-checkbox {
+            width: 20px;
+            height: 20px;
+            background: #f5f5f5;
+            border-radius: 6px;
+        }
+
+        .skeleton-text {
+            height: 16px;
+            background: #f5f5f5;
+            border-radius: 96px;
+            flex: 1;
+        }
+
+        /* Multi-select Parent Component Styles */
+        .multiselect-parent {
+            width: 100%;
+        }
+
+        .field-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #404040;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .field-hint {
+            font-size: 14px;
+            color: #525252;
+            margin-bottom: 12px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            background: #ffffff;
+            border: 1px solid #d4d4d4;
+            border-radius: 8px;
+            padding: 10px 44px 10px 12px; /* Extra padding on right for chevron */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            cursor: text;
+            transition: all 0.15s ease;
+            min-height: 48px;
+        }
+
+        .input-wrapper:hover {
+            border-color: #a3a3a3;
+        }
+
+        .input-wrapper.focused {
+            box-sizing: border-box;
+            background: #ffffff;
+            border: 2px solid #0c0c0c;
+            box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 0px 6px #fcd34d;
+            border-radius: 8px;
+            padding: 10px 43px 10px 11px; /* Extra padding on right for chevron */
+        }
+
+        .search-icon {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+            color: #525252;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 4px 4px 8px;
+            background: #ffffff;
+            border: 1px solid #d4d4d4;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #404040;
+            max-height: 24px;
+            transition: all 0.15s;
+        }
+
+        .tag.focused {
+            background: #8b5cf6;
+            border-color: #8b5cf6;
+            color: #ffffff;
+        }
+
+        .tag.focused .tag-close svg {
+            color: #ffffff;
+        }
+
+        .see-all-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #8b5cf6;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .see-all-link:hover {
+            background: #f5f3ff;
+        }
+
+        .tag-close {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 12px;
+            height: 12px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.15s;
+        }
+
+        .tag-close:hover {
+            background: #f5f5f5;
+        }
+
+        .tag-close svg {
+            width: 10px;
+            height: 10px;
+            color: #525252;
+        }
+
+        .input-field {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            color: #262626;
+            background: transparent;
+            min-width: 120px;
+            font-family: inherit;
+        }
+
+        .input-field::placeholder {
+            color: #737373;
+        }
+
+        .chevron-icon {
+            position: absolute;
+            right: 12px;
+            top: 22px;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            color: #525252;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .chevron-icon.rotated {
+            transform: translateY(-50%) rotate(180deg);
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .dropdown-menu.top {
+            top: auto;
+            bottom: calc(100% + 8px);
+        }
+
+        .dropdown-menu.open {
+            display: block;
+        }
+
+        .error-message {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #dc2626;
+            margin-bottom: 12px;
+        }
+
+        .error-icon {
+            width: 16px;
+            height: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-panel">
+            <h2>Component Controls</h2>
+            
+            <div class="control-group">
+                <label class="control-label">Component View</label>
+                <div style="padding: 12px; background: #f5f3ff; border-radius: 6px; border: 1px solid #8b5cf6;">
+                    <p style="font-size: 14px; color: #6d28d9; font-weight: 500; margin: 0;">Multi-Select Component</p>
+                    <p style="font-size: 12px; color: #7c3aed; margin: 4px 0 0 0;">Interactive with search & dropdown</p>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Data Source</label>
+                <select class="control-input" id="dataSource">
+                    <option value="languages">Languages (30 items)</option>
+                    <option value="names">Names (10 items)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Number of Items</label>
+                <input type="number" class="control-input" id="itemCount" min="1" max="30" value="10">
+                <small style="color: #737373; font-size: 12px; margin-top: 4px; display: block;">Max: <span id="maxItems">30</span></small>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Submenu Type (when dropdown is open)</label>
+                <select class="control-input" id="submenuType">
+                    <option value="checkbox">Checkbox</option>
+                    <option value="checkboxWithTip">Checkbox + Tip</option>
+                    <option value="checkboxTree">Checkbox (Tree)</option>
+                    <option value="default">Default (with icons)</option>
+                </select>
+                </div>
+
+            <div class="control-group">
+                <label class="control-label">Loading Behavior</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="enableLoading">
+                    <label for="enableLoading">Enable Skeleton Loading (2.5s on search/click)</label>
+                </div>
+                <small style="color: #737373; font-size: 12px; margin-top: 4px; display: block;">When enabled, shows skeleton for 2.5 seconds before displaying results</small>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Initial Selected Items</label>
+                <input type="number" class="control-input" id="selectedCount" min="0" max="30" value="1">
+                <small style="color: #737373; font-size: 12px; margin-top: 4px; display: block;">Number of items pre-selected on load</small>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Container Width</label>
+                <input type="range" class="control-input" id="containerWidth" min="320" max="1000" value="600">
+                <span id="widthDisplay">600px</span>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Display Options</label>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showLabel" checked>
+                    <label for="showLabel">Show Label</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showHint" checked>
+                    <label for="showHint">Show Hint Text</label>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="showError">
+                    <label for="showError">Show Error Message</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-area">
+            <div class="resize-container" id="resizeContainer">
+                <div class="dimensions-display" id="dimensions">600 × 100%</div>
+                <div class="multiselect" id="multiselect">
+                    <!-- Component will be rendered here -->
+                </div>
+                <div class="resize-handle"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data - Extended language list
+        const languages = [
+            'English (Australia) [en-AUS]',
+            'English (Austria) [en-AUT]',
+            'English (United Kingdom) [en-UK]',
+            'English (United States) [en-US]',
+            'English (Canada) [en-CA]',
+            'Spanish (Spain) [es-ES]',
+            'Spanish (Mexico) [es-MX]',
+            'Spanish (Argentina) [es-AR]',
+            'French (France) [fr-FR]',
+            'French (Canada) [fr-CA]',
+            'French (Belgium) [fr-BE]',
+            'German (Germany) [de-DE]',
+            'German (Austria) [de-AT]',
+            'German (Switzerland) [de-CH]',
+            'Italian (Italy) [it-IT]',
+            'Portuguese (Brazil) [pt-BR]',
+            'Portuguese (Portugal) [pt-PT]',
+            'Dutch (Netherlands) [nl-NL]',
+            'Dutch (Belgium) [nl-BE]',
+            'Russian (Russia) [ru-RU]',
+            'Japanese (Japan) [ja-JP]',
+            'Chinese (Simplified) [zh-CN]',
+            'Chinese (Traditional) [zh-TW]',
+            'Korean (South Korea) [ko-KR]',
+            'Arabic (Saudi Arabia) [ar-SA]',
+            'Hindi (India) [hi-IN]',
+            'Swedish (Sweden) [sv-SE]',
+            'Norwegian (Norway) [no-NO]',
+            'Danish (Denmark) [da-DK]',
+            'Finnish (Finland) [fi-FI]'
+        ];
+
+        const names = [
+            'Phoenix Baker', 'Olivia Rhye', 'Lana Steiner', 'Demi Wilkinson',
+            'Candice Wu', 'Natali Craig', 'Drew Cano', 'Orlando Diggs',
+            'Andi Lane', 'Kate Morrison'
+        ];
+
+        const supportingText = 'This is a checkbox supporting text.';
+        
+        let isLoading = false;
+        let loadingTimer = null;
+
+        // State
+        let state = {
+            itemCount: 10,
+            selectedCount: 1,
+            selectedItems: new Set([0]),
+            showLabel: true,
+            showHint: true,
+            showError: false,
+            useLanguages: true,
+            maxItems: 30,
+            // Interactive state
+            isOpen: false,
+            searchQuery: '',
+            enableLoading: false,
+            isShowingSkeleton: false,
+            focusedTagIndex: null,
+            focusedItemIndex: -1, // -1 means no item focused, for keyboard navigation
+            submenuType: 'checkbox'
+        };
+
+        // Helper functions
+        function getCurrentData() {
+            return state.useLanguages ? languages : names;
+        }
+
+        function getFilteredData() {
+            const data = getCurrentData();
+            if (!state.searchQuery) {
+                return data.slice(0, state.itemCount);
+            }
+            return data.filter(item => 
+                item.toLowerCase().includes(state.searchQuery.toLowerCase())
+            ).slice(0, state.itemCount);
+        }
+
+        function getItemCount() {
+            return getFilteredData().length;
+        }
+
+        // Render functions
+        function renderCheckbox(checked, indeterminate = false) {
+            if (indeterminate) {
+                return `
+                    <div class="checkbox indeterminate">
+                        <svg viewBox="0 0 16 16">
+                            <line x1="4" y1="8" x2="12" y2="8" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                `;
+            }
+            if (checked) {
+                return `
+                    <div class="checkbox checked">
+                        <svg viewBox="0 0 16 16">
+                            <polyline points="3,8 6,11 13,4" stroke="white" stroke-width="2" fill="none"/>
+                        </svg>
+                    </div>
+                `;
+            }
+            return '<div class="checkbox"></div>';
+        }
+
+        function renderUserIcon() {
+            return `
+                <svg class="item-icon" viewBox="0 0 20 20" fill="none">
+                    <path d="M10 10c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" fill="currentColor"/>
+                </svg>
+            `;
+        }
+
+        function renderCheckIcon() {
+            return `
+                <svg class="check-icon" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            `;
+        }
+
+        function renderDefaultItem(name, index, isSelected, isFocused, displayIndex = 0) {
+            const classes = ['multiselect-item'];
+            if (isSelected) classes.push('selected');
+            if (isFocused) classes.push('focused');
+            
+            return `
+                <div 
+                    id="item-${displayIndex}"
+                    class="${classes.join(' ')}" 
+                    data-index="${index}" 
+                    role="option"
+                    aria-selected="${isSelected}"
+                    onclick="toggleSelection(${index})"
+                >
+                    ${renderUserIcon()}
+                    <span class="item-label">${name}</span>
+                    ${isSelected ? renderCheckIcon() : ''}
+                </div>
+            `;
+        }
+
+        function renderCheckboxItem(name, index, isSelected, isFocused, displayIndex = 0) {
+            const classes = ['multiselect-item'];
+            if (isSelected) classes.push('selected');
+            if (isFocused) classes.push('focused');
+            
+            return `
+                <div 
+                    id="item-${displayIndex}"
+                    class="${classes.join(' ')}" 
+                    data-index="${index}" 
+                    role="option"
+                    aria-selected="${isSelected}"
+                    onclick="toggleSelection(${index})"
+                >
+                    ${renderCheckbox(isSelected)}
+                    <span class="item-label">${name}</span>
+                </div>
+            `;
+        }
+
+        function renderCheckboxWithTipItem(name, index, isSelected, isFocused, displayIndex = 0) {
+            const classes = ['multiselect-item', 'item-with-tip'];
+            if (isSelected) classes.push('selected');
+            if (isFocused) classes.push('focused');
+            
+            return `
+                <div 
+                    id="item-${displayIndex}"
+                    class="${classes.join(' ')}" 
+                    data-index="${index}" 
+                    role="option"
+                    aria-selected="${isSelected}"
+                    onclick="toggleSelection(${index})"
+                >
+                    <div class="item-content">
+                        ${renderCheckbox(isSelected)}
+                        <div class="item-text">
+                            <span class="item-label">${name}</span>
+                            <span class="item-supporting-text">${supportingText}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCheckboxTreeItem(name, index, isSelected, isFocused, level = 0, displayIndex = 0) {
+            const classes = ['multiselect-item'];
+            if (isSelected) classes.push('selected');
+            if (isFocused) classes.push('focused');
+            if (index > 0 && index < 4) classes.push('category-item');
+            
+            const paddingLeft = level * 20;
+            
+            return `
+                <div 
+                    id="item-${displayIndex}"
+                    class="${classes.join(' ')}" 
+                    data-index="${index}" 
+                    role="option"
+                    aria-selected="${isSelected}"
+                    onclick="toggleSelection(${index})" 
+                    style="padding-left: ${paddingLeft + 16}px"
+                >
+                    ${renderCheckbox(isSelected)}
+                    <span class="item-label" style="font-weight: ${level === 0 ? 600 : 400}">${name}</span>
+                </div>
+            `;
+        }
+
+        function renderEmptyState() {
+            return `
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                            <path d="M16 8v8m0 4h.01M28 16c0 6.627-5.373 12-12 12S4 22.627 4 16 9.373 4 16 4s12 5.373 12 12z" stroke="#6d28d9" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <div class="empty-title">Something's wrong</div>
+                    <div class="empty-text">We were unable to load the data you have requested this time</div>
+                    <div class="empty-action">Try again</div>
+                </div>
+            `;
+        }
+
+        function renderSkeletonItem() {
+            return `
+                <div class="multiselect-item skeleton">
+                    <div class="skeleton-checkbox"></div>
+                    <div class="skeleton-text"></div>
+                </div>
+            `;
+        }
+
+        function renderParentComponent() {
+            const allData = getCurrentData();
+            const filteredData = getFilteredData();
+            const selectedTags = Array.from(state.selectedItems).map(i => allData[i]).filter(Boolean);
+            
+            let labelHtml = '';
+            if (state.showLabel) {
+                labelHtml = '<label class="field-label">Label</label>';
+            }
+
+            let hintHtml = '';
+            if (state.showHint) {
+                hintHtml = '<div class="field-hint">This is a hint text to help user.</div>';
+            }
+
+            let errorHtml = '';
+            if (state.showError) {
+                errorHtml = `
+                    <div class="error-message">
+                        <svg class="error-icon" viewBox="0 0 16 16" fill="none">
+                            <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1"/>
+                            <path d="M8 4v4M8 10h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        <span>This is an error message text.</span>
+                    </div>
+                `;
+            }
+
+            let tagsHtml = '';
+            if (selectedTags.length > 0) {
+                const maxVisibleTags = 15;
+                const tagsToShow = selectedTags.slice(0, maxVisibleTags);
+                const hasMoreTags = selectedTags.length > maxVisibleTags;
+                
+                tagsHtml = tagsToShow.map((tag, idx) => {
+                    const actualIndex = Array.from(state.selectedItems)[idx];
+                    const isFocused = state.focusedTagIndex === actualIndex;
+                    return `
+                        <div class="tag ${isFocused ? 'focused' : ''}" data-tag-index="${actualIndex}">
+                            <span>${tag}</span>
+                            <div class="tag-close" onclick="removeTag(${actualIndex})">
+                                <svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M2 2l6 6M8 2l-6 6"/>
+                                </svg>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (hasMoreTags) {
+                    tagsHtml += `
+                        <div class="see-all-link">
+                            <span>see all ${selectedTags.length} selections</span>
+                        </div>
+                    `;
+                }
+            }
+
+            const wrapperClasses = ['input-wrapper'];
+            if (state.isOpen) {
+                wrapperClasses.push('focused');
+            }
+
+            const chevronClass = state.isOpen ? 'chevron-icon rotated' : 'chevron-icon';
+
+            let dropdownHtml = '';
+            if (state.isOpen) {
+                if (state.isShowingSkeleton) {
+                    // Show skeleton loading
+                    const skeletonItemsHtml = Array.from({ length: Math.min(10, state.itemCount) }, () => `
+                        <div class="multiselect-item skeleton">
+                            <div class="skeleton-checkbox"></div>
+                            <div class="skeleton-text"></div>
+                        </div>
+                    `).join('');
+
+                    dropdownHtml = `
+                        <div id="dropdown-menu" class="dropdown-menu open">
+                    <div class="multiselect-header">
+                        <div class="multiselect-label">
+                            <div class="skeleton-checkbox skeleton"></div>
+                            <div class="skeleton-text skeleton" style="width: 100px; height: 20px;"></div>
+                                </div>
+                            </div>
+                            <div class="multiselect-items">
+                                ${skeletonItemsHtml}
+                        </div>
+                    </div>
+                `;
+                } else {
+                    // Show actual data
+                    const itemCount = filteredData.length;
+                    const allSelected = itemCount > 0 && Array.from(state.selectedItems).every(idx => 
+                        allData[idx] && filteredData.includes(allData[idx])
+                    );
+                    const someSelected = state.selectedItems.size > 0 && !allSelected;
+
+                    let itemsHtml = '';
+                    filteredData.forEach((item, displayIndex) => {
+                        const actualIndex = allData.indexOf(item);
+                        const isSelected = state.selectedItems.has(actualIndex);
+                        const isFocused = state.focusedItemIndex === displayIndex;
+                        
+                        // Render different item types based on submenuType
+                        if (state.submenuType === 'checkbox') {
+                            itemsHtml += renderCheckboxItem(item, actualIndex, isSelected, isFocused, displayIndex);
+                        } else if (state.submenuType === 'checkboxWithTip') {
+                            itemsHtml += renderCheckboxWithTipItem(item, actualIndex, isSelected, isFocused, displayIndex);
+                        } else if (state.submenuType === 'checkboxTree') {
+                            const level = displayIndex === 0 || displayIndex === 6 ? 0 : (displayIndex < 3 ? 1 : 2);
+                            itemsHtml += renderCheckboxTreeItem(item, actualIndex, isSelected, isFocused, level, displayIndex);
+                        } else {
+                            itemsHtml += renderDefaultItem(item, actualIndex, isSelected, isFocused, displayIndex);
+                        }
+                    });
+
+                    if (itemsHtml === '') {
+                        itemsHtml = '<div style="padding: 24px; text-align: center; color: #737373;">No results found</div>';
+                    }
+
+                    // Show header with Select All / Clear All for checkbox types
+                    const showHeader = state.submenuType.includes('checkbox');
+                    const selectAllFocused = state.focusedItemIndex === -2;
+                    const clearAllFocused = state.focusedItemIndex === -3;
+                    const headerHtml = showHeader ? `
+                    <div class="multiselect-header">
+                            <div class="multiselect-label ${selectAllFocused ? 'focused' : ''}" onclick="toggleSelectAll()" id="select-all-option">
+                            ${renderCheckbox(allSelected, someSelected)}
+                            <span>Select all</span>
+                        </div>
+                        <span class="clear-all ${clearAllFocused ? 'focused' : ''}" onclick="clearAll()" id="clear-all-option">Clear all</span>
+                    </div>
+                    ` : '';
+
+                    dropdownHtml = `
+                        <div id="dropdown-menu" class="dropdown-menu open" role="listbox" aria-label="Language selection">
+                            ${headerHtml}
+                            <div class="multiselect-items">
+                                ${itemsHtml}
+                            </div>
+                    </div>
+                `;
+                }
+            }
+
+            return `
+                <div class="multiselect-parent">
+                    ${labelHtml}
+                    ${hintHtml}
+                    ${errorHtml}
+                    <div style="position: relative;">
+                        <div class="${wrapperClasses.join(' ')}" onclick="handleInputWrapperClick(event)">
+                            <svg class="search-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="8" cy="8" r="6"/>
+                                <path d="M13 13l4 4"/>
+                            </svg>
+                            ${tagsHtml}
+                            <input 
+                                type="text" 
+                                class="input-field" 
+                                id="searchInput"
+                                role="combobox"
+                                aria-expanded="${state.isOpen}"
+                                aria-autocomplete="list"
+                                aria-controls="dropdown-menu"
+                                aria-activedescendant="${state.focusedItemIndex >= 0 ? `item-${state.focusedItemIndex}` : ''}"
+                                placeholder="${selectedTags.length === 0 ? 'Select a language' : ''}" 
+                                value="${state.searchQuery || ''}"
+                                oninput="handleSearch(this.value)"
+                                onfocus="handleInputFocus()"
+                                onkeydown="handleKeyDown(event)"
+                                autocomplete="off"
+                            >
+                            <svg class="${chevronClass}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" onclick="toggleDropdown(event)">
+                                <path d="M5 8l5 5 5-5"/>
+                            </svg>
+                        </div>
+                        ${dropdownHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderComponent() {
+            const multiselect = document.getElementById('multiselect');
+            multiselect.innerHTML = renderParentComponent();
+            
+            // Calculate and apply dropdown position after rendering
+            if (state.isOpen) {
+                requestAnimationFrame(() => {
+                    updateDropdownPosition();
+                });
+            }
+        }
+        
+        function updateDropdownPosition() {
+            const dropdown = document.getElementById('dropdown-menu');
+            const inputWrapper = document.querySelector('.input-wrapper');
+            const resizeContainer = document.querySelector('.resize-container');
+            
+            if (!dropdown || !inputWrapper || !resizeContainer) return;
+            
+            // Get positions and dimensions
+            const inputRect = inputWrapper.getBoundingClientRect();
+            const containerRect = resizeContainer.getBoundingClientRect();
+            const dropdownHeight = dropdown.offsetHeight;
+            
+            // Calculate available space below and above
+            const spaceBelow = containerRect.bottom - inputRect.bottom - 8; // 8px gap
+            const spaceAbove = inputRect.top - containerRect.top - 8; // 8px gap
+            
+            // Determine if we should position dropdown on top
+            // Position on top if dropdown would overflow the container bottom
+            // Use a threshold: if less than 200px space below (or half dropdown height), prefer top
+            const threshold = Math.min(dropdownHeight * 0.5, 200);
+            const shouldPositionTop = spaceBelow < threshold && spaceAbove >= 40;
+            
+            // Apply or remove the top class
+            if (shouldPositionTop) {
+                dropdown.classList.add('top');
+            } else {
+                dropdown.classList.remove('top');
+            }
+        }
+
+        // Interactive handlers
+        function handleInputWrapperClick(event) {
+            // Don't close if clicking on tag close button
+            if (event.target.closest('.tag-close')) {
+                return;
+            }
+            
+            // If clicking directly on the input, let it handle focus naturally
+            if (event.target.id === 'searchInput') {
+                return;
+            }
+            
+            // Clear focused tag on click
+            state.focusedTagIndex = null;
+            
+            // Focus the input - this will trigger handleInputFocus which opens the dropdown
+            const input = document.getElementById('searchInput');
+            if (input) {
+                input.focus({ preventScroll: true });
+            }
+        }
+
+        function handleInputFocus() {
+            // Open dropdown on focus if not already open
+            if (!state.isOpen) {
+                if (state.enableLoading) {
+                    triggerSkeletonLoading();
+                } else {
+                    state.isOpen = true;
+                    renderComponent();
+                    // Re-focus input after render
+                    setTimeout(() => {
+                        const input = document.getElementById('searchInput');
+                        if (input) {
+                            input.focus({ preventScroll: true });
+                        }
+                    }, 0);
+                }
+            }
+        }
+
+        function handleSearch(value) {
+            // Always update search query to allow free typing
+            state.searchQuery = value;
+            state.focusedTagIndex = null; // Clear focused tag when typing
+            
+            // Only trigger loading/rendering if not already showing skeleton
+            if (state.enableLoading && !state.isShowingSkeleton && state.searchQuery !== '') {
+                // Trigger loading on search
+                triggerSkeletonLoading();
+            } else if (!state.isShowingSkeleton) {
+                // Store cursor position before rendering
+                const input = document.getElementById('searchInput');
+                const cursorPos = input ? input.selectionStart : 0;
+                
+                renderComponent();
+                
+                // Restore cursor position after rendering
+                setTimeout(() => {
+                    const newInput = document.getElementById('searchInput');
+                    if (newInput) {
+                        newInput.setSelectionRange(cursorPos, cursorPos);
+                        newInput.focus({ preventScroll: true });
+                    }
+                }, 0);
+            }
+        }
+
+        function handleKeyDown(event) {
+            const input = event.target;
+            const filteredData = getFilteredData();
+            const itemCount = filteredData.length;
+            
+            // Handle Tab key navigation when dropdown is open
+            if (state.isOpen && !state.isShowingSkeleton && event.key === 'Tab') {
+                event.preventDefault();
+                const hasHeader = state.submenuType.includes('checkbox');
+                
+                if (event.shiftKey) {
+                    // Shift+Tab: move backwards
+                    if (state.focusedItemIndex === -1) {
+                        // From input, go to last item
+                        state.focusedItemIndex = itemCount > 0 ? itemCount - 1 : (hasHeader ? -3 : -1);
+                    } else if (state.focusedItemIndex === -2) {
+                        // From Select all, go back to input (stay at input)
+                        state.focusedItemIndex = -1;
+                    } else if (state.focusedItemIndex === -3) {
+                        // From Clear all, go to Select all
+                        state.focusedItemIndex = -2;
+                    } else if (state.focusedItemIndex === 0) {
+                        // From first item, go to Clear all (or Select all if no Clear all)
+                        state.focusedItemIndex = hasHeader ? -3 : -1;
+                    } else {
+                        // Move to previous item
+                        state.focusedItemIndex--;
+                    }
+                } else {
+                    // Tab: move forwards
+                    if (state.focusedItemIndex === -1) {
+                        // From input, go to Select all or first item
+                        state.focusedItemIndex = hasHeader ? -2 : (itemCount > 0 ? 0 : -1);
+                    } else if (state.focusedItemIndex === -2) {
+                        // From Select all, go to Clear all
+                        state.focusedItemIndex = -3;
+                    } else if (state.focusedItemIndex === -3) {
+                        // From Clear all, go to first item
+                        state.focusedItemIndex = itemCount > 0 ? 0 : -2;
+                    } else if (state.focusedItemIndex >= itemCount - 1) {
+                        // From last item, wrap to Select all (or input if no header)
+                        state.focusedItemIndex = hasHeader ? -2 : -1;
+                    } else {
+                        // Move to next item
+                        state.focusedItemIndex++;
+                    }
+                }
+                
+                renderComponent();
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    if (input) input.focus({ preventScroll: true });
+                    // Scroll focused item into view
+                    scrollFocusedItemIntoView();
+                }, 0);
+                return;
+            }
+            
+            // Handle arrow key navigation when dropdown is open
+            if (state.isOpen && !state.isShowingSkeleton) {
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    const hasHeader = state.submenuType.includes('checkbox');
+                    
+                    if (state.focusedItemIndex === -1) {
+                        // From input, go to Select all or first item
+                        state.focusedItemIndex = hasHeader ? -2 : (itemCount > 0 ? 0 : -1);
+                    } else if (state.focusedItemIndex === -2) {
+                        // From Select all, go to Clear all
+                        state.focusedItemIndex = -3;
+                    } else if (state.focusedItemIndex === -3) {
+                        // From Clear all, go to first item
+                        state.focusedItemIndex = itemCount > 0 ? 0 : -2;
+                    } else if (state.focusedItemIndex >= itemCount - 1) {
+                        // From last item, wrap to Select all or first
+                        state.focusedItemIndex = hasHeader ? -2 : 0;
+                    } else {
+                        // Move to next item
+                        state.focusedItemIndex++;
+                    }
+                    
+                    renderComponent();
+                    setTimeout(() => {
+                        const input = document.getElementById('searchInput');
+                        if (input) input.focus({ preventScroll: true });
+                        // Scroll focused item into view
+                        scrollFocusedItemIntoView();
+                    }, 0);
+                    return;
+                }
+                
+                if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    const hasHeader = state.submenuType.includes('checkbox');
+                    
+                    if (state.focusedItemIndex === -1) {
+                        // From input, go to last item
+                        state.focusedItemIndex = itemCount > 0 ? itemCount - 1 : (hasHeader ? -3 : -1);
+                    } else if (state.focusedItemIndex === -2) {
+                        // From Select all, wrap to last item or stay
+                        state.focusedItemIndex = itemCount > 0 ? itemCount - 1 : -2;
+                    } else if (state.focusedItemIndex === -3) {
+                        // From Clear all, go to Select all
+                        state.focusedItemIndex = -2;
+                    } else if (state.focusedItemIndex === 0) {
+                        // From first item, go to Clear all or Select all
+                        state.focusedItemIndex = hasHeader ? -3 : (itemCount > 0 ? itemCount - 1 : -1);
+                    } else {
+                        // Move to previous item
+                        state.focusedItemIndex--;
+                    }
+                    
+                    renderComponent();
+                    setTimeout(() => {
+                        const input = document.getElementById('searchInput');
+                        if (input) input.focus({ preventScroll: true });
+                        // Scroll focused item into view
+                        scrollFocusedItemIntoView();
+                    }, 0);
+                    return;
+                }
+                
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    if (state.focusedItemIndex === -2) {
+                        // Select all is focused
+                        toggleSelectAll();
+                    } else if (state.focusedItemIndex === -3) {
+                        // Clear all is focused
+                        clearAll();
+                    } else if (state.focusedItemIndex >= 0) {
+                        // An item is focused
+                        const allData = getCurrentData();
+                        const item = filteredData[state.focusedItemIndex];
+                        const actualIndex = allData.indexOf(item);
+                        toggleSelection(actualIndex);
+                    }
+                    return;
+                }
+                
+                if (event.key === 'Home') {
+                    event.preventDefault();
+                    const hasHeader = state.submenuType.includes('checkbox');
+                    // Home goes to Select all if header exists, otherwise first item
+                    state.focusedItemIndex = hasHeader ? -2 : (itemCount > 0 ? 0 : -1);
+                    renderComponent();
+                    setTimeout(() => {
+                        const input = document.getElementById('searchInput');
+                        if (input) input.focus({ preventScroll: true });
+                        scrollFocusedItemIntoView();
+                    }, 0);
+                    return;
+                }
+                
+                if (event.key === 'End') {
+                    event.preventDefault();
+                    // End goes to last item
+                    if (itemCount > 0) {
+                        state.focusedItemIndex = itemCount - 1;
+                        renderComponent();
+                        setTimeout(() => {
+                            const input = document.getElementById('searchInput');
+                            if (input) input.focus({ preventScroll: true });
+                            scrollFocusedItemIntoView();
+                        }, 0);
+                    }
+                    return;
+                }
+            }
+            
+            // Handle Escape to close dropdown
+            if (event.key === 'Escape' && state.isOpen) {
+                event.preventDefault();
+                state.isOpen = false;
+                state.searchQuery = '';
+                state.focusedItemIndex = -1;
+                renderComponent();
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    if (input) input.focus({ preventScroll: true });
+                }, 0);
+                return;
+            }
+            
+            // Handle backspace for tag deletion
+            if (event.key === 'Backspace' && input.value === '' && state.searchQuery === '') {
+                event.preventDefault();
+                
+                const selectedArray = Array.from(state.selectedItems);
+                
+                if (selectedArray.length === 0) return;
+                
+                if (state.focusedTagIndex !== null) {
+                    // Delete the focused tag
+                    state.selectedItems.delete(state.focusedTagIndex);
+                    state.focusedTagIndex = null;
+                    renderComponent();
+                    
+                    // Re-focus input after deletion
+                    setTimeout(() => {
+                        const searchInput = document.getElementById('searchInput');
+                        if (searchInput) {
+                            searchInput.focus({ preventScroll: true });
+                        }
+                    }, 0);
+                } else {
+                    // Focus the last tag
+                    state.focusedTagIndex = selectedArray[selectedArray.length - 1];
+                    renderComponent();
+                    
+                    // Re-focus input to keep it active
+                    setTimeout(() => {
+                        const searchInput = document.getElementById('searchInput');
+                        if (searchInput) {
+                            searchInput.focus({ preventScroll: true });
+                        }
+                    }, 0);
+                }
+            } else if (event.key !== 'Backspace' && state.focusedTagIndex !== null && input.value !== '') {
+                // Clear focused tag when typing
+                state.focusedTagIndex = null;
+            }
+            
+            // Reset focused item when typing
+            if (event.key.length === 1 || event.key === 'Backspace') {
+                state.focusedItemIndex = -1;
+            }
+        }
+        
+        function scrollFocusedItemIntoView() {
+            // Check for focused item or focused header element
+            const focusedElement = document.querySelector('.multiselect-item.focused, .multiselect-label.focused, .clear-all.focused');
+            if (focusedElement) {
+                focusedElement.scrollIntoView({ 
+                    block: 'nearest', 
+                    inline: 'nearest',
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            if (state.enableLoading && !state.isOpen) {
+                triggerSkeletonLoading();
+            } else {
+                state.isOpen = !state.isOpen;
+                if (!state.isOpen) {
+                    state.searchQuery = '';
+                    state.focusedItemIndex = -1;
+                }
+                renderComponent();
+            }
+        }
+
+        function toggleSelection(index) {
+            if (state.selectedItems.has(index)) {
+                state.selectedItems.delete(index);
+            } else {
+                state.selectedItems.add(index);
+            }
+            // Keep dropdown open after selection
+            const wasOpen = state.isOpen;
+            renderComponent();
+            state.isOpen = wasOpen;
+            
+            // Re-focus the input to maintain cursor position without scrolling
+            setTimeout(() => {
+                const input = document.getElementById('searchInput');
+                if (input) {
+                    input.focus({ preventScroll: true });
+                }
+            }, 0);
+        }
+
+        function toggleSelectAll() {
+            const filteredData = getFilteredData();
+            const allData = getCurrentData();
+            
+            if (filteredData.length === 0) return;
+            
+            const filteredIndices = filteredData.map(item => allData.indexOf(item));
+            const allFilteredSelected = filteredIndices.every(idx => state.selectedItems.has(idx));
+            
+            if (allFilteredSelected) {
+                // Deselect all filtered items
+                filteredIndices.forEach(idx => state.selectedItems.delete(idx));
+            } else {
+                // Select all filtered items
+                filteredIndices.forEach(idx => state.selectedItems.add(idx));
+            }
+            // Keep dropdown open
+            renderComponent();
+            
+            // Re-focus the input without scrolling
+            setTimeout(() => {
+                const input = document.getElementById('searchInput');
+                if (input) {
+                    input.focus({ preventScroll: true });
+                }
+            }, 0);
+        }
+
+        function clearAll() {
+            state.selectedItems.clear();
+            // Keep dropdown open
+            renderComponent();
+            
+            // Re-focus the input without scrolling
+            setTimeout(() => {
+                const input = document.getElementById('searchInput');
+                if (input) {
+                    input.focus({ preventScroll: true });
+                }
+            }, 0);
+        }
+
+        function removeTag(index) {
+            state.selectedItems.delete(index);
+            state.focusedTagIndex = null; // Clear focused tag
+            // Keep dropdown state as is
+            renderComponent();
+            
+            // Re-focus the input if dropdown is open without scrolling
+            if (state.isOpen) {
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    if (input) {
+                        input.focus({ preventScroll: true });
+                    }
+                }, 0);
+            }
+        }
+
+        function triggerSkeletonLoading() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            state.isOpen = true;
+            state.isShowingSkeleton = true;
+            renderComponent();
+            
+            // Focus input immediately
+            setTimeout(() => {
+                const input = document.getElementById('searchInput');
+                if (input) {
+                    input.focus({ preventScroll: true });
+                }
+            }, 0);
+            
+            // After 2.5 seconds, show actual data
+            loadingTimer = setTimeout(() => {
+                state.isShowingSkeleton = false;
+                renderComponent();
+                isLoading = false;
+                
+                // Re-focus input after loading completes
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    if (input) {
+                        input.focus({ preventScroll: true });
+                    }
+                }, 0);
+            }, 2500);
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const multiselect = document.querySelector('.multiselect-parent');
+            if (multiselect && !multiselect.contains(event.target)) {
+                if (state.isOpen) {
+                    state.isOpen = false;
+                    state.searchQuery = '';
+                    renderComponent();
+                }
+            }
+        });
+
+        function updateDimensions() {
+            const container = document.getElementById('resizeContainer');
+            const width = container.offsetWidth;
+            const height = container.offsetHeight;
+            document.getElementById('dimensions').textContent = `${width} × ${height}`;
+        }
+
+        // Event listeners
+
+        document.getElementById('dataSource').addEventListener('change', (e) => {
+            state.useLanguages = e.target.value === 'languages';
+            const maxItems = state.useLanguages ? 30 : 10;
+            document.getElementById('maxItems').textContent = maxItems;
+            document.getElementById('itemCount').max = maxItems;
+            
+            // Adjust item count if it exceeds the new max
+            if (state.itemCount > maxItems) {
+                state.itemCount = maxItems;
+                document.getElementById('itemCount').value = maxItems;
+            }
+            
+            renderComponent();
+        });
+
+        document.getElementById('itemCount').addEventListener('input', (e) => {
+            state.itemCount = parseInt(e.target.value);
+            renderComponent();
+        });
+
+        document.getElementById('submenuType').addEventListener('change', (e) => {
+            state.submenuType = e.target.value;
+            renderComponent();
+        });
+
+        document.getElementById('enableLoading').addEventListener('change', (e) => {
+            state.enableLoading = e.target.checked;
+            // Don't trigger re-render, just update the state
+        });
+
+        document.getElementById('selectedCount').addEventListener('input', (e) => {
+            const count = parseInt(e.target.value);
+            const allData = getCurrentData();
+            state.selectedItems.clear();
+            for (let i = 0; i < Math.min(count, allData.length); i++) {
+                state.selectedItems.add(i);
+            }
+            renderComponent();
+        });
+
+        document.getElementById('containerWidth').addEventListener('input', (e) => {
+            const width = e.target.value;
+            document.getElementById('resizeContainer').style.width = width + 'px';
+            document.getElementById('widthDisplay').textContent = width + 'px';
+            updateDimensions();
+        });
+
+        document.getElementById('showLabel').addEventListener('change', (e) => {
+            state.showLabel = e.target.checked;
+            renderComponent();
+        });
+
+        document.getElementById('showHint').addEventListener('change', (e) => {
+            state.showHint = e.target.checked;
+            renderComponent();
+        });
+
+        document.getElementById('showError').addEventListener('change', (e) => {
+            state.showError = e.target.checked;
+            renderComponent();
+        });
+
+        // Resize observer
+        const resizeObserver = new ResizeObserver(() => {
+            updateDimensions();
+            // Recalculate dropdown position when container is resized
+            if (state.isOpen) {
+                updateDropdownPosition();
+            }
+        });
+
+        resizeObserver.observe(document.getElementById('resizeContainer'));
+
+        // Initial render
+        renderComponent();
+        updateDimensions();
+    </script>
+</body>
+</html>
