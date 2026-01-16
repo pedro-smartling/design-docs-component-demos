@@ -241,7 +241,7 @@
         }
 
         .multiselect-items {
-            max-height: 400px;
+            max-height: 320px;
             overflow-y: auto;
             padding: 4px 0;
         }
@@ -301,12 +301,6 @@
             background: #d4d4d4;
             border-radius: 8px;
             height: 50%;
-        }
-
-        /* Category styles */
-        .category-item {
-            border-bottom: 1px solid #e5e5e5;
-            padding: 0;
         }
 
         .category-header {
@@ -481,9 +475,10 @@
         }
 
         .tag.focused {
-            background: #8b5cf6;
-            border-color: #8b5cf6;
+            background: #262626;
             color: #ffffff;
+            border: 2px solid #0c0c0c;
+            box-shadow: 0px 0px 0px 2px #ffffff, 0px 0px 0px 6px #fcd34d;
         }
 
         .tag.focused .tag-close svg {
@@ -494,9 +489,10 @@
             display: inline-flex;
             align-items: center;
             padding: 4px 8px;
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 500;
-            color: #8b5cf6;
+            color: #2563eb;
+            text-decoration: underline;
             cursor: pointer;
             border-radius: 6px;
             transition: all 0.15s;
@@ -504,7 +500,7 @@
         }
 
         .see-all-link:hover {
-            background: #f5f3ff;
+            color:#1E40AF;
         }
 
         .tag-close {
@@ -571,7 +567,6 @@
             box-shadow: 0 4px 16px rgba(0,0,0,0.1);
             z-index: 1000;
             display: none;
-            max-height: 400px;
             overflow-y: auto;
         }
 
@@ -598,6 +593,10 @@
         .error-icon {
             width: 16px;
             height: 16px;
+        }
+
+        a, a:visited, a:hover, a:active {
+            color: inherit;
         }
     </style>
 </head>
@@ -692,15 +691,14 @@
         const languages = [
             'English (Australia) [en-AUS]',
             'English (Austria) [en-AUT]',
+            'English (Canada) [en-CA]',
             'English (United Kingdom) [en-UK]',
             'English (United States) [en-US]',
-            'English (Canada) [en-CA]',
             'Spanish (Spain) [es-ES]',
-            'Spanish (Mexico) [es-MX]',
-            'Spanish (Argentina) [es-AR]',
-            'French (France) [fr-FR]',
-            'French (Canada) [fr-CA]',
+            'French (International) [fr]',
             'French (Belgium) [fr-BE]',
+            'French (Canada) [fr-CA]',
+            'French (France) [fr-FR]',
             'German (Germany) [de-DE]',
             'German (Austria) [de-AT]',
             'German (Switzerland) [de-CH]',
@@ -730,6 +728,40 @@
 
         const supportingText = 'This is a checkbox supporting text.';
         
+        // Tree structure definition: maps parent display index to children display indices
+        // displayIndex 0 is first parent, its children are 1-5
+        // displayIndex 6 is second parent, its children are 7-9
+        const treeStructure = {
+            0: [1, 2, 3, 4, 5],  // English category children
+            6: [7, 8, 9, 10]     // French category children
+        };
+        
+        // Category labels for parent items in tree view
+        const treeCategoryLabels = {
+            0: 'English',
+            6: 'French'
+        };
+        
+        // Get parent display index for a child
+        function getParentDisplayIndex(displayIndex) {
+            for (const [parent, children] of Object.entries(treeStructure)) {
+                if (children.includes(displayIndex)) {
+                    return parseInt(parent);
+                }
+            }
+            return null; // No parent (is a root or parent itself)
+        }
+        
+        // Get children display indices for a parent
+        function getChildrenDisplayIndices(displayIndex) {
+            return treeStructure[displayIndex] || [];
+        }
+        
+        // Check if a display index is a parent
+        function isParentItem(displayIndex) {
+            return treeStructure.hasOwnProperty(displayIndex);
+        }
+        
         let isLoading = false;
         let loadingTimer = null;
 
@@ -750,7 +782,8 @@
             isShowingSkeleton: false,
             focusedTagIndex: null,
             focusedItemIndex: -1, // -1 means no item focused, for keyboard navigation
-            submenuType: 'checkbox'
+            submenuType: 'checkbox',
+            showAllTags: false // For "see all/see less" toggle
         };
 
         // Helper functions
@@ -877,26 +910,48 @@
             `;
         }
 
-        function renderCheckboxTreeItem(name, index, isSelected, isFocused, level = 0, displayIndex = 0) {
+        function renderCheckboxTreeItem(name, index, isSelected, isFocused, level = 0, displayIndex = 0, filteredData, allData) {
             const classes = ['multiselect-item'];
             if (isSelected) classes.push('selected');
             if (isFocused) classes.push('focused');
-            if (index > 0 && index < 4) classes.push('category-item');
             
             const paddingLeft = level * 20;
+            
+            // Use category label for parent items, otherwise use the item name
+            const displayName = treeCategoryLabels[displayIndex] || name;
+            
+            // Check if this is a parent and determine checkbox state
+            let checkboxHtml;
+            if (isParentItem(displayIndex)) {
+                const childDisplayIndices = getChildrenDisplayIndices(displayIndex);
+                // Get actual indices for children that are in the current filtered view
+                const childActualIndices = childDisplayIndices
+                    .filter(di => di < filteredData.length)
+                    .map(di => allData.indexOf(filteredData[di]));
+                
+                const selectedChildren = childActualIndices.filter(idx => state.selectedItems.has(idx));
+                const allChildrenSelected = childActualIndices.length > 0 && selectedChildren.length === childActualIndices.length;
+                const someChildrenSelected = selectedChildren.length > 0 && !allChildrenSelected;
+                
+                // Parent is checked if all children selected, indeterminate if some selected
+                checkboxHtml = renderCheckbox(allChildrenSelected, someChildrenSelected);
+            } else {
+                checkboxHtml = renderCheckbox(isSelected);
+            }
             
             return `
                 <div 
                     id="item-${displayIndex}"
                     class="${classes.join(' ')}" 
                     data-index="${index}" 
+                    data-display-index="${displayIndex}"
                     role="option"
                     aria-selected="${isSelected}"
-                    onclick="toggleSelection(${index})" 
+                    onclick="toggleTreeSelection(${index}, ${displayIndex})" 
                     style="padding-left: ${paddingLeft + 16}px"
                 >
-                    ${renderCheckbox(isSelected)}
-                    <span class="item-label" style="font-weight: ${level === 0 ? 600 : 400}">${name}</span>
+                    ${checkboxHtml}
+                    <span class="item-label" style="font-weight: ${level === 0 ? 600 : 400}">${displayName}</span>
                 </div>
             `;
         }
@@ -955,9 +1010,10 @@
 
             let tagsHtml = '';
             if (selectedTags.length > 0) {
-                const maxVisibleTags = 15;
-                const tagsToShow = selectedTags.slice(0, maxVisibleTags);
-                const hasMoreTags = selectedTags.length > maxVisibleTags;
+                const collapseThreshold = 6; // Show "see all" link when 6+ items selected
+                const visibleWhenCollapsed = 5; // Show 5 tags when collapsed
+                const shouldCollapse = selectedTags.length >= collapseThreshold && !state.showAllTags;
+                const tagsToShow = shouldCollapse ? selectedTags.slice(0, visibleWhenCollapsed) : selectedTags;
                 
                 tagsHtml = tagsToShow.map((tag, idx) => {
                     const actualIndex = Array.from(state.selectedItems)[idx];
@@ -974,12 +1030,21 @@
                     `;
                 }).join('');
                 
-                if (hasMoreTags) {
-                    tagsHtml += `
-                        <div class="see-all-link">
-                            <span>see all ${selectedTags.length} selections</span>
-                        </div>
-                    `;
+                // Show "see all X selected" when collapsed, "see less" when expanded
+                if (selectedTags.length >= collapseThreshold) {
+                    if (shouldCollapse) {
+                        tagsHtml += `
+                            <div class="see-all-link" onclick="toggleShowAllTags(event)">
+                                <a href="">see all ${selectedTags.length} selected</a>
+                            </div>
+                        `;
+                    } else {
+                        tagsHtml += `
+                            <div class="see-all-link" onclick="toggleShowAllTags(event)">
+                                <a href="">see less</a>
+                            </div>
+                        `;
+                    }
                 }
             }
 
@@ -1017,9 +1082,9 @@
                 } else {
                     // Show actual data
                     const itemCount = filteredData.length;
-                    const allSelected = itemCount > 0 && Array.from(state.selectedItems).every(idx => 
-                        allData[idx] && filteredData.includes(allData[idx])
-                    );
+                    // Check if ALL items in the filtered list are selected
+                    const filteredIndices = filteredData.map(item => allData.indexOf(item));
+                    const allSelected = itemCount > 0 && filteredIndices.every(idx => state.selectedItems.has(idx));
                     const someSelected = state.selectedItems.size > 0 && !allSelected;
 
                     let itemsHtml = '';
@@ -1034,8 +1099,9 @@
                         } else if (state.submenuType === 'checkboxWithTip') {
                             itemsHtml += renderCheckboxWithTipItem(item, actualIndex, isSelected, isFocused, displayIndex);
                         } else if (state.submenuType === 'checkboxTree') {
-                            const level = displayIndex === 0 || displayIndex === 6 ? 0 : (displayIndex < 3 ? 1 : 2);
-                            itemsHtml += renderCheckboxTreeItem(item, actualIndex, isSelected, isFocused, level, displayIndex);
+                            // Level 0 for parents (displayIndex 0 and 6), level 1 for children
+                            const level = isParentItem(displayIndex) ? 0 : 1;
+                            itemsHtml += renderCheckboxTreeItem(item, actualIndex, isSelected, isFocused, level, displayIndex, filteredData, allData);
                         } else {
                             itemsHtml += renderDefaultItem(item, actualIndex, isSelected, isFocused, displayIndex);
                         }
@@ -1494,6 +1560,51 @@
             }, 0);
         }
 
+        function toggleTreeSelection(actualIndex, displayIndex) {
+            const filteredData = getFilteredData();
+            const allData = getCurrentData();
+            
+            if (isParentItem(displayIndex)) {
+                // This is a parent - toggle all children
+                const childDisplayIndices = getChildrenDisplayIndices(displayIndex);
+                const childActualIndices = childDisplayIndices
+                    .filter(di => di < filteredData.length)
+                    .map(di => allData.indexOf(filteredData[di]));
+                
+                // Check if all children are currently selected
+                const allChildrenSelected = childActualIndices.length > 0 && 
+                    childActualIndices.every(idx => state.selectedItems.has(idx));
+                
+                if (allChildrenSelected) {
+                    // Deselect all children
+                    childActualIndices.forEach(idx => state.selectedItems.delete(idx));
+                } else {
+                    // Select all children
+                    childActualIndices.forEach(idx => state.selectedItems.add(idx));
+                }
+            } else {
+                // This is a child or standalone item - toggle normally
+                if (state.selectedItems.has(actualIndex)) {
+                    state.selectedItems.delete(actualIndex);
+                } else {
+                    state.selectedItems.add(actualIndex);
+                }
+            }
+            
+            // Keep dropdown open after selection
+            const wasOpen = state.isOpen;
+            renderComponent();
+            state.isOpen = wasOpen;
+            
+            // Re-focus the input to maintain cursor position without scrolling
+            setTimeout(() => {
+                const input = document.getElementById('searchInput');
+                if (input) {
+                    input.focus({ preventScroll: true });
+                }
+            }, 0);
+        }
+
         function toggleSelectAll() {
             const filteredData = getFilteredData();
             const allData = getCurrentData();
@@ -1524,6 +1635,7 @@
 
         function clearAll() {
             state.selectedItems.clear();
+            state.showAllTags = false; // Reset expanded state
             // Keep dropdown open
             renderComponent();
             
@@ -1539,6 +1651,12 @@
         function removeTag(index) {
             state.selectedItems.delete(index);
             state.focusedTagIndex = null; // Clear focused tag
+            
+            // Reset showAllTags if we go below the threshold
+            if (state.selectedItems.size < 6) {
+                state.showAllTags = false;
+            }
+            
             // Keep dropdown state as is
             renderComponent();
             
@@ -1551,6 +1669,13 @@
                     }
                 }, 0);
             }
+        }
+
+        function toggleShowAllTags(event) {
+            event.stopPropagation();
+            event.preventDefault();
+            state.showAllTags = !state.showAllTags;
+            renderComponent();
         }
 
         function triggerSkeletonLoading() {
