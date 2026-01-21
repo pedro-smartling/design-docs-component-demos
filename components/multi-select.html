@@ -1107,12 +1107,13 @@
                         }
                     });
 
-                    if (itemsHtml === '') {
+                    // Hide header when no results found
+                    if (itemCount === 0) {
                         itemsHtml = '<div style="padding: 24px; text-align: center; color: #737373;">No results found</div>';
                     }
 
-                    // Show header with Select All / Clear All for checkbox types
-                    const showHeader = state.submenuType.includes('checkbox');
+                    // Show header with Select All / Clear All for checkbox types (hide when no results)
+                    const showHeader = state.submenuType.includes('checkbox') && itemCount > 0;
                     const selectAllFocused = state.focusedItemIndex === -2;
                     const clearAllFocused = state.focusedItemIndex === -3;
                     const headerHtml = showHeader ? `
